@@ -6,14 +6,41 @@ import (
 	"strings"
 )
 
-var englishFrequencies = map[rune]float64{
-	'E': 12.702, 'T': 9.056, 'A': 8.167, 'O': 7.507, 'I': 6.966, 'N': 6.749,
-	'S': 6.327, 'H': 6.094, 'R': 5.987, 'D': 4.253, 'L': 4.025, 'C': 2.782,
-	'U': 2.758, 'M': 2.406, 'W': 2.360, 'F': 2.228, 'G': 2.015, 'Y': 1.974,
-	'P': 1.929, 'B': 1.492, 'V': 0.978, 'K': 0.772, 'J': 0.153, 'X': 0.150,
-	'Q': 0.095, 'Z': 0.074,
+// Frecvențele literelor în limba engleză
+var englishFrequencies = []rune{'E', 'T', 'A', 'O', 'I', 'N', 'S', 'H', 'R', 'D', 'L', 'C', 'U', 'M', 'W', 'F', 'G', 'Y', 'P', 'B', 'V', 'K', 'J', 'X', 'Q', 'Z'}
+
+// Substitution cipher key provided by the user
+var substitutionKey = map[rune]rune{
+	'A': 'O', 'B': 'P', 'C': 'Q', 'D': 'R', 'E': 'S', 'F': 'T', 'G': 'U', 'H': 'V',
+	'I': 'W', 'J': 'X', 'K': 'Y', 'L': 'Z', 'M': 'A', 'N': 'B', 'O': 'C', 'P': 'D',
+	'Q': 'E', 'R': 'F', 'S': 'G', 'T': 'H', 'U': 'I', 'V': 'J', 'W': 'K', 'X': 'L',
+	'Y': 'M', 'Z': 'N',
 }
 
+// Inversarea cheii pentru decriptare
+var reverseSubstitutionKey = map[rune]rune{}
+
+func init() {
+	// Generăm cheia inversă pentru decriptare
+	for k, v := range substitutionKey {
+		reverseSubstitutionKey[v] = k
+	}
+}
+
+// Functie pentru criptarea textului folosind o cheie de substituție
+func encrypt(plaintext string, key map[rune]rune) string {
+	encrypted := []rune{}
+	for _, char := range strings.ToUpper(plaintext) {
+		if newChar, ok := key[char]; ok {
+			encrypted = append(encrypted, newChar)
+		} else {
+			encrypted = append(encrypted, char) // Dacă nu este o literă, lăsăm caracterul neschimbat
+		}
+	}
+	return string(encrypted)
+}
+
+// Functie pentru calcularea frecvențelor din text
 func calculateFrequency(text string) map[rune]float64 {
 	frequency := make(map[rune]float64)
 	total := 0
@@ -25,7 +52,7 @@ func calculateFrequency(text string) map[rune]float64 {
 		}
 	}
 
-	// Calculate percentages
+	// Calculăm procentajele
 	for char := range frequency {
 		frequency[char] = (frequency[char] / float64(total)) * 100
 	}
@@ -33,11 +60,12 @@ func calculateFrequency(text string) map[rune]float64 {
 	return frequency
 }
 
-func compareFrequencies(ciphertext string) {
+// Functie pentru compararea frecventelor și sortarea lor
+func compareFrequencies(ciphertext string) []rune {
 	ciphertext = strings.ToUpper(ciphertext)
 	freq := calculateFrequency(ciphertext)
 
-	// Sort by frequency
+	// Sortare după frecvență
 	type pair struct {
 		char  rune
 		value float64
@@ -50,16 +78,68 @@ func compareFrequencies(ciphertext string) {
 		return freqPairs[i].value > freqPairs[j].value
 	})
 
-	fmt.Println("Frequencies in ciphertext:")
+	fmt.Println("Frecvențele în criptotext:")
 	for _, p := range freqPairs {
 		fmt.Printf("%c: %.2f%%\n", p.char, p.value)
 	}
+
+	// Returnăm literele sortate în funcție de frecvență
+	var sortedCipherLetters []rune
+	for _, p := range freqPairs {
+		sortedCipherLetters = append(sortedCipherLetters, p.char)
+	}
+	return sortedCipherLetters
+}
+
+// Functie pentru generarea unei chei pe baza frecvențelor
+func generateSubstitutionKey(cipherLetters []rune) map[rune]rune {
+	// Generăm o mapare între literele din criptotext și literele din limba engleză în ordinea frecvenței
+	substitutionKey := make(map[rune]rune)
+	for i := 0; i < len(cipherLetters) && i < len(englishFrequencies); i++ {
+		substitutionKey[cipherLetters[i]] = englishFrequencies[i]
+	}
+
+	return substitutionKey
+}
+
+// Functie pentru aplicarea substituției și decriptarea textului
+func decryptWithKey(ciphertext string, key map[rune]rune) string {
+	decrypted := []rune{}
+	for _, char := range strings.ToUpper(ciphertext) {
+		if newChar, ok := key[char]; ok {
+			decrypted = append(decrypted, newChar)
+		} else {
+			decrypted = append(decrypted, char) // În cazul în care nu găsim o substituție
+		}
+	}
+	return string(decrypted)
 }
 
 func main() {
-	// Exemplu de criptotext
-	ciphertext := "HVS OCKF HGSH!"
+	// Introducerea textului original
+	plaintext := "HELLO WORLD THIS IS A SECRET MESSAGE."
 
-	// Comparare frecvențe
-	compareFrequencies(ciphertext)
+	// Criptăm textul
+	encryptedText := encrypt(plaintext, substitutionKey)
+	fmt.Println("Text criptat:", encryptedText)
+
+	// Comparăm frecvențele și obținem literele sortate în funcție de frecvență
+	cipherLetters := compareFrequencies(encryptedText)
+
+	// Generăm o cheie pe baza frecvențelor
+	generatedKey := generateSubstitutionKey(cipherLetters)
+
+	// Afișăm cheia generată
+	fmt.Println("Cheia de substituție generată din frecvențe:")
+	for cipherChar, plainChar := range generatedKey {
+		fmt.Printf("%c -> %c\n", cipherChar, plainChar)
+	}
+
+	// Decriptăm criptotextul folosind cheia generată din frecvențe
+	decryptedText := decryptWithKey(encryptedText, generatedKey)
+	fmt.Println("Text decriptat (bazat pe analiză de frecvență):", decryptedText)
+
+	// Decriptăm criptotextul folosind cheia reală (cea inversată)
+	actualDecryptedText := decryptWithKey(encryptedText, reverseSubstitutionKey)
+	fmt.Println("Text decriptat corect (cu cheia reală):", actualDecryptedText)
 }
